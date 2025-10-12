@@ -323,6 +323,7 @@ email:
 ```
 
 Required environment variables:
+
 - `SMTP_USERNAME` - SMTP username
 - `SMTP_PASSWORD` - SMTP password
 
@@ -344,6 +345,7 @@ discord:
 ```
 
 Required environment variables:
+
 - `DISCORD_WEBHOOK_URL` - Discord Webhook URL
 
 #### 💬 Slack Configuration
@@ -365,6 +367,7 @@ slack:
 ```
 
 Required environment variables:
+
 - `SLACK_WEBHOOK_URL` - Slack Webhook URL
 
 #### 💬 Telegram Configuration
@@ -383,6 +386,7 @@ telegram:
 ```
 
 Required environment variables:
+
 - `TELEGRAM_BOT_TOKEN` - Telegram Bot Token
 - `TELEGRAM_CHAT_ID` - Telegram Chat ID
 
@@ -403,9 +407,10 @@ wechat:
 ```
 
 Required environment variables:
+
 - `WECHAT_WEBHOOK_URL` - WeChat Work group bot Webhook URL
 
-#### 💬 Custom Webhook Configuration
+#### 🔗 Custom Webhook Configuration
 
 ```yaml
 webhook:
@@ -414,36 +419,57 @@ webhook:
   headers:                              # Custom request headers (optional)
     Content-Type: "application/json"
     Authorization: "Bearer your_token"
-  timeout: 30                           # Request timeout in seconds (optional)
-  retries: 3                            # Number of retry attempts (optional)
-  retry_delay: 5                        # Delay between retries in seconds (optional)
+  
+  # Authentication options
+  auth_type: "bearer"                   # Authentication type: bearer, basic, apikey (optional)
+  auth_token: "your_token"              # Bearer token or API key (optional)
+  auth_username: "user"                 # Basic auth username (optional)
+  auth_password: "pass"                 # Basic auth password (optional)
+  auth_header: "X-API-Key"              # Custom header name for API key (optional)
+  
+  # Request configuration
+  timeout: 30                           # Request timeout in seconds (optional, default 30)
+  retries: 3                            # Number of retry attempts (optional, default 0)
   skip_tls_verify: false                # Skip TLS certificate verification (optional)
-  basic_auth:                           # Basic authentication (optional)
-    username: "user"
-    password: "pass"
-  bearer_token: "your_bearer_token"     # Bearer token authentication (optional)
+  
+  # Payload customization
   custom_payload:                       # Custom request payload (optional)
     template: '{"alert": "{{.Title}}", "details": "{{.Message}}"}'
-    content_type: "application/json"
-    fields:
+    content_type: "application/json"    # Content type for the payload (optional)
+    fields:                             # Additional static fields (optional)
       environment: "production"
       service: "ponghub"
-    include_title: true
-    include_message: true
-    title_field: "alert_title"
-    message_field: "alert_message"
-  expected_codes: [200, 201, 202]       # Expected HTTP status codes (optional)
-  success_condition: "status.*ok"       # Response body condition for success (optional)
-  failure_retry:                        # Advanced retry configuration (optional)
-    max_retries: 5
-    initial_delay: 2
-    max_delay: 60
-    backoff_factor: 2.0
-    retry_codes: [429, 500, 502, 503, 504]
+    include_title: true                 # Include title in additional fields (optional)
+    include_message: true               # Include message in additional fields (optional)
+    title_field: "alert_title"          # Custom field name for title (optional)
+    message_field: "alert_message"      # Custom field name for message (optional)
+  
+  # Preset formats (alternative to custom_payload)
+  format: "slack"                       # Preset format: slack, discord, teams, mattermost (optional)
+  
+  # Direct template (DEPRECATED, use custom_payload.template instead)
+  template: '{"title": "{{.title}}", "message": "{{.message}}"}'  # Direct template (optional)
+```
+
+The template uses Go template syntax and supports accessing variables like `{{.Title}}`, `{{.Message}}`, etc:
+
+```yaml
+custom_payload:
+  template: |
+    {
+      "alert": "{{.Title}}",
+      "details": "{{.Message}}",
+      "metadata": {
+        "severity": "high"
+      }
+    }
+  fields:
+    environment: "production"
 ```
 
 Required environment variables:
-- `WEBHOOK_URL` - Custom Webhook URL
+
+- `WEBHOOK_URL` - Custom Webhook URL (if `url` field is empty)
 
 </div>
 </details>
