@@ -67,11 +67,18 @@ func (w *WebhookNotifier) buildPayload(title, message string) (interface{}, stri
 	data := map[string]interface{}{
 		"title":     title,
 		"message":   message,
+		"Title":     title,   // Add uppercase version for template compatibility
+		"Message":   message, // Add uppercase version for template compatibility
 		"timestamp": time.Now().Format(time.RFC3339),
 		"service":   "ponghub",
 	}
 
-	// Use custom template if configured
+	// Check for custom payload configuration first
+	if w.config.CustomPayload != nil {
+		return w.buildCustomPayload(data)
+	}
+
+	// Use direct template if configured (for backwards compatibility)
 	if w.config.Template != "" {
 		return w.buildTemplatePayload(data)
 	}
@@ -85,9 +92,129 @@ func (w *WebhookNotifier) buildPayload(title, message string) (interface{}, stri
 	return data, "application/json", nil
 }
 
+// buildCustomPayload builds payload using custom payload configuration
+func (w *WebhookNotifier) buildCustomPayload(data map[string]interface{}) (interface{}, string, error) {
+	customPayload := w.config.CustomPayload
+
+	// Create enhanced data with custom fields and field mappings
+	enhancedData := make(map[string]interface{})
+
+	// Copy original data
+	for k, v := range data {
+		enhancedData[k] = v
+	}
+
+	// Add custom fields if configured
+	if customPayload.Fields != nil {
+		for key, value := range customPayload.Fields {
+			enhancedData[key] = value
+		}
+	}
+
+	// Handle field name mapping
+	if customPayload.TitleField != "" && customPayload.IncludeTitle {
+		enhancedData[customPayload.TitleField] = data["title"]
+	}
+	if customPayload.MessageField != "" && customPayload.IncludeMessage {
+		enhancedData[customPayload.MessageField] = data["message"]
+	}
+
+	// Use custom template if provided
+	if customPayload.Template != "" {
+		// For JSON templates, try structured approach first
+		if strings.Contains(customPayload.Template, `"alert"`) && strings.Contains(customPayload.Template, `"details"`) {
+			// Handle the common case: {"alert": "{{.Title}}", "details": "{{.Message}}", "env": "{{.environment}}", "svc": "{{.service}}"}
+			result := map[string]interface{}{
+				"alert":   enhancedData["Title"],
+				"details": enhancedData["Message"],
+			}
+
+			// Add other fields that might be referenced in the template
+			if strings.Contains(customPayload.Template, `"env"`) {
+				result["env"] = enhancedData["environment"]
+			}
+			if strings.Contains(customPayload.Template, `"svc"`) {
+				result["svc"] = enhancedData["service"]
+			}
+			// Add any other custom fields from enhancedData that might be in template
+			for key, value := range enhancedData {
+				if key != "Title" && key != "Message" && key != "title" && key != "message" &&
+					key != "timestamp" && key != "service" && key != "environment" {
+					if strings.Contains(customPayload.Template, fmt.Sprintf(`"%s"`, key)) {
+						result[key] = value
+					}
+				}
+			}
+
+			contentType := "application/json"
+			if customPayload.ContentType != "" {
+				contentType = customPayload.ContentType
+			}
+			return result, contentType, nil
+		}
+
+		// Fallback to template parsing for other cases
+		return w.buildTemplatePayloadWithData(customPayload.Template, enhancedData, customPayload.ContentType)
+	}
+
+	// Default behavior - return enhanced data
+	contentType := "application/json"
+	if customPayload.ContentType != "" {
+		contentType = customPayload.ContentType
+	}
+
+	return enhancedData, contentType, nil
+}
+
+// buildTemplatePayloadWithData builds payload using a template with provided data and content type
+func (w *WebhookNotifier) buildTemplatePayloadWithData(templateStr string, data map[string]interface{}, contentType string) (interface{}, string, error) {
+	// Create template with JSON escape function
+	tmpl := template.New("webhook").Funcs(template.FuncMap{
+		"jsonEscape": func(s string) string {
+			b, _ := json.Marshal(s)
+			return string(b[1 : len(b)-1]) // Remove surrounding quotes
+		},
+	})
+
+	tmpl, err := tmpl.Parse(templateStr)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return nil, "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	// Try to parse as JSON first
+	var jsonData interface{}
+	if err := json.Unmarshal(buf.Bytes(), &jsonData); err == nil {
+		resultContentType := "application/json"
+		if contentType != "" {
+			resultContentType = contentType
+		}
+		return jsonData, resultContentType, nil
+	}
+
+	// Return as string if not valid JSON
+	resultContentType := "text/plain"
+	if contentType != "" {
+		resultContentType = contentType
+	}
+	return buf.String(), resultContentType, nil
+}
+
 // buildTemplatePayload builds payload using custom template
 func (w *WebhookNotifier) buildTemplatePayload(data map[string]interface{}) (interface{}, string, error) {
-	tmpl, err := template.New("webhook").Parse(w.config.Template)
+	// Create template with JSON escape function
+	tmpl := template.New("webhook").Funcs(template.FuncMap{
+		"jsonEscape": func(s string) string {
+			b, _ := json.Marshal(s)
+			return string(b[1 : len(b)-1]) // Remove surrounding quotes
+		},
+	})
+
+	tmpl, err := tmpl.Parse(w.config.Template)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse template: %w", err)
 	}
@@ -170,6 +297,8 @@ func (w *WebhookNotifier) buildDiscordFormat(data map[string]interface{}) map[st
 }
 
 // buildTeamsFormat builds Microsoft Teams-compatible payload
+//
+//goland:noinspection HttpUrlsUsage
 func (w *WebhookNotifier) buildTeamsFormat(data map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"@type":      "MessageCard",

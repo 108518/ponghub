@@ -323,6 +323,7 @@ email:
 ```
 
 所需环境变量：
+
 - `SMTP_USERNAME` - SMTP用户名
 - `SMTP_PASSWORD` - SMTP密码
 
@@ -344,6 +345,7 @@ discord:
 ```
 
 所需环境变量：
+
 - `DISCORD_WEBHOOK_URL` - Discord Webhook URL
 
 #### 💬 Slack 配置
@@ -365,6 +367,7 @@ slack:
 ```
 
 所需环境变量：
+
 - `SLACK_WEBHOOK_URL` - Slack Webhook URL
 
 #### 💬 Telegram 配置
@@ -383,6 +386,7 @@ telegram:
 ```
 
 所需环境变量：
+
 - `TELEGRAM_BOT_TOKEN` - Telegram 机器人 Token
 - `TELEGRAM_CHAT_ID` - Telegram 聊天 ID
 
@@ -403,9 +407,10 @@ wechat:
 ```
 
 所需环境变量：
+
 - `WECHAT_WEBHOOK_URL` - 企业微信群机器人 Webhook URL
 
-#### 💬 自定义Webhook配置
+#### 🔗 自定义Webhook配置
 
 ```yaml
 webhook:
@@ -414,36 +419,57 @@ webhook:
   headers:                              # 自定义请求头（可选）
     Content-Type: "application/json"
     Authorization: "Bearer your_token"
-  timeout: 30                           # 请求超时时间，单位秒（可选）
-  retries: 3                            # 重试次数（可选）
-  retry_delay: 5                        # 重试间隔时间，单位秒（可选）
+  
+  # 认证选项
+  auth_type: "bearer"                   # 认证类型：bearer, basic, apikey（可选）
+  auth_token: "your_token"              # Bearer令牌或API密钥（可选）
+  auth_username: "user"                 # 基本认证用户名（可选）
+  auth_password: "pass"                 # 基本认证密码（可选）
+  auth_header: "X-API-Key"              # API密钥自定义头部名称（可选）
+  
+  # 请求配置
+  timeout: 30                           # 请求超时时间，单位秒（可选，默认30）
+  retries: 3                            # 重试次数（可选，默认0）
   skip_tls_verify: false                # 跳过TLS证书验证（可选）
-  basic_auth:                           # 基本认证（可选）
-    username: "user"
-    password: "pass"
-  bearer_token: "your_bearer_token"     # Bearer令牌认证（可选）
-  custom_payload:                       # 自定义请求负载（可选）
+  
+  # 载荷自定义
+  custom_payload:                       # 自定义请求载荷（可选）
     template: '{"alert": "{{.Title}}", "details": "{{.Message}}"}'
-    content_type: "application/json"
-    fields:
+    content_type: "application/json"    # 载荷内容类型（可选）
+    fields:                             # 额外静态字段（可选）
       environment: "production"
       service: "ponghub"
-    include_title: true
-    include_message: true
-    title_field: "alert_title"
-    message_field: "alert_message"
-  expected_codes: [200, 201, 202]       # 期望的HTTP状态码（可选）
-  success_condition: "status.*ok"       # 响应体成功条件（可选）
-  failure_retry:                        # 高级重试配置（可选）
-    max_retries: 5
-    initial_delay: 2
-    max_delay: 60
-    backoff_factor: 2.0
-    retry_codes: [429, 500, 502, 503, 504]
+    include_title: true                 # 在额外字段中包含标题（可选）
+    include_message: true               # 在额外字段中包含消息（可选）
+    title_field: "alert_title"          # 标题自定义字段名（可选）
+    message_field: "alert_message"      # 消息自定义字段名（可选）
+  
+  # 预设格式（作为custom_payload的替代）
+  format: "slack"                       # 预设格式：slack, discord, teams, mattermost（可选）
+  
+  # 直接模板（DEPRECATED，建议使用custom_payload）
+  template: '{"title": "{{.title}}", "message": "{{.message}}"}'  # 直接模板（可选）
+```
+
+模板使用Go模板语法，支持访问 `{{.Title}}`、`{{.Message}}` 等变量：
+
+```yaml
+custom_payload:
+  template: |
+    {
+      "alert": "{{.Title}}",
+      "details": "{{.Message}}",
+      "metadata": {
+        "severity": "high"
+      }
+    }
+  fields:
+    environment: "production"
 ```
 
 所需环境变量：
-- `WEBHOOK_URL` - 自定义 Webhook URL
+
+- `WEBHOOK_URL` - 自定义Webhook URL（如果`url`字段为空）
 
 </div>
 </details>
