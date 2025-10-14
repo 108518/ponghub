@@ -269,10 +269,6 @@ PongHub supports the following notification methods:
 
 - **Default Notification** - Notification through GitHub Actions workflow failure
 - **Email Notification** - Send emails via SMTP with advanced security options
-- **Discord** - Send to Discord channels via Webhook with rich embeds
-- **Slack** - Send to Slack channels via Webhook with Block Kit support
-- **Telegram** - Send messages via Bot API with advanced formatting
-- **WeChat Work** - Send messages via WeChat Work group bot with multiple message types
 - **Custom Webhook** - Send to any HTTP endpoint with advanced configuration
 
 To use, add a `notifications` configuration block in your `config.yaml` file:
@@ -282,10 +278,6 @@ notifications:
   enabled: true  # Enable notification functionality
   methods:       # Notification methods to enable
     - email
-    - discord
-    - slack
-    - telegram
-    - wechat
     - webhook
   
   # Specific configuration for each notification method...
@@ -327,89 +319,6 @@ Required environment variables:
 - `SMTP_USERNAME` - SMTP username
 - `SMTP_PASSWORD` - SMTP password
 
-#### 💬 Discord Configuration
-
-```yaml
-discord:
-  webhook_url: "https://discord.com/api/webhooks/your_webhook_id/your_webhook_token"  # Leave empty to read from environment variables
-  username: "PongHub Bot"           # Username for sending messages (optional)
-  avatar_url: ""                    # Avatar URL for sending messages (optional)
-  timeout: 30                       # Request timeout in seconds (optional)
-  retries: 3                        # Number of retry attempts (optional)
-  color: 15158332                   # Embed color in decimal format (optional)
-  use_embeds: true                  # Use rich embeds instead of plain text (optional)
-  mentions:                         # User/role IDs to mention (optional)
-    - "123456789012345678"
-  headers:                          # Custom headers (optional)
-    User-Agent: "PongHub-Bot/1.0"
-```
-
-Required environment variables:
-
-- `DISCORD_WEBHOOK_URL` - Discord Webhook URL
-
-#### 💬 Slack Configuration
-
-```yaml
-slack:
-  webhook_url: "https://hooks.slack.com/services/your/webhook/url"  # Leave empty to read from environment variables
-  channel: "#alerts"                # Channel to send messages to (optional)
-  username: "PongHub Bot"           # Username for sending messages (optional)
-  icon_emoji: ":robot_face:"        # Message icon emoji (optional)
-  icon_url: ""                      # Custom icon URL (optional)
-  timeout: 30                       # Request timeout in seconds (optional)
-  retries: 3                        # Number of retry attempts (optional)
-  color: "danger"                   # Message color: good, warning, danger, or hex (optional)
-  use_blocks: true                  # Use Block Kit formatting (optional)
-  thread_ts: ""                     # Reply to thread timestamp (optional)
-  headers:                          # Custom headers (optional)
-    User-Agent: "PongHub-Bot/1.0"
-```
-
-Required environment variables:
-
-- `SLACK_WEBHOOK_URL` - Slack Webhook URL
-
-#### 💬 Telegram Configuration
-
-```yaml
-telegram:
-  bot_token: "your_bot_token"                 # Leave empty to read from environment variables
-  chat_id: "your_chat_id"                     # Leave empty to read from environment variables
-  parse_mode: "HTML"                          # HTML, Markdown, MarkdownV2 (optional)
-  disable_web_page_preview: true              # Disable web page preview (optional)
-  disable_notification: false                 # Send silently (optional)
-  timeout: 30                                 # Request timeout in seconds (optional)
-  retries: 3                                  # Number of retry attempts (optional)
-  thread_id: ""                               # Message thread ID for topics (optional)
-  reply_to_message_id: ""                     # Reply to specific message (optional)
-```
-
-Required environment variables:
-
-- `TELEGRAM_BOT_TOKEN` - Telegram Bot Token
-- `TELEGRAM_CHAT_ID` - Telegram Chat ID
-
-#### 💬 WeChat Work Configuration
-
-```yaml
-wechat:
-  webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your_key"  # Leave empty to read from environment variables
-  msg_type: "text"                      # Message type: text, markdown, image, news (optional)
-  timeout: 30                           # Request timeout in seconds (optional)
-  retries: 3                            # Number of retry attempts (optional)
-  mentioned_list:                       # User IDs to mention (optional)
-    - "@all"
-  mentioned_mobile:                     # Mobile numbers to mention (optional)
-    - "13800138000"
-  headers:                              # Custom headers (optional)
-    User-Agent: "PongHub-Bot/1.0"
-```
-
-Required environment variables:
-
-- `WECHAT_WEBHOOK_URL` - WeChat Work group bot Webhook URL
-
 #### 🔗 Custom Webhook Configuration
 
 ```yaml
@@ -418,13 +327,14 @@ webhook:
   method: "POST"                        # HTTP method (optional, default POST)
   headers:                              # Custom request headers (optional)
     Content-Type: "application/json"
-    Authorization: "Bearer your_token"
+    Authorization: "Bearer {{env(API_TOKEN)}}"  # Supports Special Parameters
+    X-Request-ID: "{{uuid}}"           # Dynamic request ID using Special Parameters
   
-  # Authentication options
+  # Authentication options (all fields support Special Parameters)
   auth_type: "bearer"                   # Authentication type: bearer, basic, apikey (optional)
-  auth_token: "your_token"              # Bearer token or API key (optional)
-  auth_username: "user"                 # Basic auth username (optional)
-  auth_password: "pass"                 # Basic auth password (optional)
+  auth_token: "{{env(WEBHOOK_TOKEN)}}"  # Bearer token with environment variable (optional)
+  auth_username: "user-{{rand(1000,9999)}}"  # Basic auth username with dynamic suffix (optional)
+  auth_password: "{{env(AUTH_PASSWORD)}}"     # Basic auth password from environment (optional)
   auth_header: "X-API-Key"              # Custom header name for API key (optional)
   
   # Request configuration
@@ -432,44 +342,68 @@ webhook:
   retries: 3                            # Number of retry attempts (optional, default 0)
   skip_tls_verify: false                # Skip TLS certificate verification (optional)
   
-  # Payload customization
+  # Advanced payload customization with Special Parameters support
   custom_payload:                       # Custom request payload (optional)
-    template: '{"alert": "{{.Title}}", "details": "{{.Message}}"}'
+    template: |
+      {
+        "alert": "{{.Title}}",
+        "details": "{{.Message}}",
+        "timestamp": "{{%Y-%m-%d %H:%M:%S}}",
+        "request_id": "{{uuid}}",
+        "environment": "{{env(ENVIRONMENT)}}",
+        "random_id": "{{rand(10000,99999)}}"
+      }
     content_type: "application/json"    # Content type for the payload (optional)
-    fields:                             # Additional static fields (optional)
-      environment: "production"
-      service: "ponghub"
+    fields:                             # Additional fields with Special Parameters support (optional)
+      environment: "prod-{{rand(100,999)}}"
+      session_id: "{{uuid_short}}"
+      build_number: "{{env(BUILD_NUMBER)}}"
+      timestamp_unix: "{{%s}}"
     include_title: true                 # Include title in additional fields (optional)
     include_message: true               # Include message in additional fields (optional)
     title_field: "alert_title"          # Custom field name for title (optional)
     message_field: "alert_message"      # Custom field name for message (optional)
-  
-  # Preset formats (alternative to custom_payload)
-  format: "slack"                       # Preset format: slack, discord, teams, mattermost (optional)
-  
-  # Direct template (DEPRECATED, use custom_payload.template instead)
-  template: '{"title": "{{.title}}", "message": "{{.message}}"}'  # Direct template (optional)
 ```
 
-The template uses Go template syntax and supports accessing variables like `{{.Title}}`, `{{.Message}}`, etc:
+**Special Parameters Support in Webhooks:**
+
+Webhook configurations now fully support Special Parameters in the following fields:
+
+- **URL**: `url: "https://hooks.example.com/{{env(HOOK_ID)}}"`
+- **Headers**: All header values can use Special Parameters
+- **Authentication**: All auth fields support dynamic values
+- **Templates**: Both Go template syntax (`{{.Title}}`) and Special Parameters (`{{uuid}}`) work together
+- **Custom Fields**: All custom payload fields support Special Parameters
+
+**Template Syntax Compatibility:**
+
+The webhook template system supports both syntaxes seamlessly:
+
+- **Go Template Syntax**: `{{.Title}}`, `{{.Message}}` - Access notification data
+- **Special Parameters**: `{{uuid}}`, `{{%Y-%m-%d}}`, `{{env(VAR)}}` - Dynamic values
+
+Example combining both syntaxes:
 
 ```yaml
 custom_payload:
   template: |
     {
-      "alert": "{{.Title}}",
-      "details": "{{.Message}}",
-      "metadata": {
-        "severity": "high"
-      }
+      "service_alert": "{{.Title}}",
+      "description": "{{.Message}}",
+      "alert_id": "{{uuid_short}}",
+      "timestamp": "{{%Y-%m-%d %H:%M:%S}}",
+      "environment": "{{env(DEPLOY_ENV)}}",
+      "correlation_id": "{{rand_str(12)}}"
     }
   fields:
-    environment: "production"
+    datacenter: "{{env(DATACENTER)}}"
+    version: "{{env(APP_VERSION)}}"
 ```
 
 Required environment variables:
 
 - `WEBHOOK_URL` - Custom Webhook URL (if `url` field is empty)
+- Any environment variables referenced in Special Parameters (e.g., `API_TOKEN`, `ENVIRONMENT`)
 
 </div>
 </details>
@@ -494,9 +428,7 @@ notifications:
   enabled: true
   methods:
     - email
-    - discord
-    - slack
-  
+
   email:
     smtp_host: "smtp.gmail.com"
     smtp_port: 587
@@ -507,18 +439,6 @@ notifications:
     subject: "🚨 PongHub Service Alert"
     use_starttls: true
     is_html: true
-  
-  discord:
-    username: "PongHub Monitor"
-    use_embeds: true
-    color: 15158332
-  
-  slack:
-    channel: "#alerts"
-    username: "PongHub Bot"
-    icon_emoji: ":warning:"
-    use_blocks: true
-    color: "danger"
 ```
 
 ## Local Development
@@ -538,3 +458,4 @@ make test
 ## Disclaimer
 
 [PongHub](https://github.com/WCY-dt/ponghub) is for personal learning and research only. We are not responsible for the usage behavior or results of the program. Please do not use it for commercial purposes or illegal activities.
+

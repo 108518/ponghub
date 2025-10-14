@@ -245,7 +245,7 @@ ponghub 现已支持强大的参数化配置功能，允许在配置文件中使
 
 ```yaml
 services:
-  - name: "Parameterized Service"
+  - name: "参数化服务"
     endpoints:
         - url: "https://api.example.com/data?date={{%Y-%m-%d}}&rand={{rand(1,100)}}"
         - url: "https://api.example.com/submit"
@@ -269,10 +269,6 @@ PongHub 支持以下通知方式：
 
 - **默认通知** - 通过GitHub Actions工作流失败进行通知
 - **邮件通知** - 通过SMTP发送邮件，支持高级安全选项
-- **Discord** - 通过Webhook发送到Discord频道，支持丰富嵌入消息
-- **Slack** - 通过Webhook发送到Slack频道，支持Block Kit格式
-- **Telegram** - 通过Bot API发送消息，支持高级格式化
-- **企业微信** - 通过企业微信群机器人发送消息，支持多种消息类型
 - **自定义Webhook** - 发送到任意HTTP端点，支持高级配置
 
 使用时，在 `config.yaml` 文件中添加 `notifications` 配置块：
@@ -282,10 +278,6 @@ notifications:
   enabled: true  # 启用通知功能
   methods:       # 要启用的通知方式
     - email
-    - discord
-    - slack
-    - telegram
-    - wechat
     - webhook
   
   # 各种通知方式的具体配置...
@@ -327,104 +319,22 @@ email:
 - `SMTP_USERNAME` - SMTP用户名
 - `SMTP_PASSWORD` - SMTP密码
 
-#### 💬 Discord 配置
-
-```yaml
-discord:
-  webhook_url: "https://discord.com/api/webhooks/your_webhook_id/your_webhook_token"  # 留空则从环境变量读取
-  username: "PongHub Bot"           # 发送消息的用户名（可选）
-  avatar_url: ""                    # 发送消息的头像URL（可选）
-  timeout: 30                       # 请求超时时间，单位秒（可选）
-  retries: 3                        # 重试次数（可选）
-  color: 15158332                   # 嵌入消息颜色，十进制格式（可选）
-  use_embeds: true                  # 使用丰富嵌入消息而非纯文本（可选）
-  mentions:                         # 要@的用户/角色ID（可选）
-    - "123456789012345678"
-  headers:                          # 自定义请求头（可选）
-    User-Agent: "PongHub-Bot/1.0"
-```
-
-所需环境变量：
-
-- `DISCORD_WEBHOOK_URL` - Discord Webhook URL
-
-#### 💬 Slack 配置
-
-```yaml
-slack:
-  webhook_url: "https://hooks.slack.com/services/your/webhook/url"  # 留空则从环境变量读取
-  channel: "#alerts"                # 发送消息的频道（可选）
-  username: "PongHub Bot"           # 发送消息的用户名（可选）
-  icon_emoji: ":robot_face:"        # 消息图标表情（可选）
-  icon_url: ""                      # 自定义图标URL（可选）
-  timeout: 30                       # 请求超时时间，单位秒（可选）
-  retries: 3                        # 重试次数（可选）
-  color: "danger"                   # 消息颜色：good, warning, danger 或十六进制（可选）
-  use_blocks: true                  # 使用Block Kit格式（可选）
-  thread_ts: ""                     # 回复到指定线程时间戳（可选）
-  headers:                          # 自定义请求头（可选）
-    User-Agent: "PongHub-Bot/1.0"
-```
-
-所需环境变量：
-
-- `SLACK_WEBHOOK_URL` - Slack Webhook URL
-
-#### 💬 Telegram 配置
-
-```yaml
-telegram:
-  bot_token: "your_bot_token"                 # 留空则从环境变量读取
-  chat_id: "your_chat_id"                     # 留空则从环境变量读取
-  parse_mode: "HTML"                          # HTML, Markdown, MarkdownV2（可选）
-  disable_web_page_preview: true              # 禁用网页预览（可选）
-  disable_notification: false                 # 静默发送（可选）
-  timeout: 30                                 # 请求超时时间，单位秒（可选）
-  retries: 3                                  # 重试次数（可选）
-  thread_id: ""                               # 话题消息线程ID（可选）
-  reply_to_message_id: ""                     # 回复到特定消息（可选）
-```
-
-所需环境变量：
-
-- `TELEGRAM_BOT_TOKEN` - Telegram 机器人 Token
-- `TELEGRAM_CHAT_ID` - Telegram 聊天 ID
-
-#### 💬 企业微信配置
-
-```yaml
-wechat:
-  webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your_key"  # 留空则从环境变量读取
-  msg_type: "text"                      # 消息类型：text, markdown, image, news（可选）
-  timeout: 30                           # 请求超时时间，单位秒（可选）
-  retries: 3                            # 重试次数（可选）
-  mentioned_list:                       # 要@的用户ID（可选）
-    - "@all"
-  mentioned_mobile:                     # 要@的手机号（可选）
-    - "13800138000"
-  headers:                              # 自定义请求头（可选）
-    User-Agent: "PongHub-Bot/1.0"
-```
-
-所需环境变量：
-
-- `WECHAT_WEBHOOK_URL` - 企业微信群机器人 Webhook URL
-
 #### 🔗 自定义Webhook配置
 
 ```yaml
 webhook:
   url: "https://your-webhook-endpoint.com/notify"  # 留空则从环境变量读取
   method: "POST"                        # HTTP方法（可选，默认POST）
-  headers:                              # 自定义请求头（可选）
+  headers:                              # 自定义请求头（可选，支持特殊参数）
     Content-Type: "application/json"
-    Authorization: "Bearer your_token"
+    Authorization: "Bearer {{env(API_TOKEN)}}"  # 支持特殊参数
+    X-Request-ID: "{{uuid}}"           # 使用特殊参数的动态请求ID
   
-  # 认证选项
+  # 认证选项（所有字段均支持特殊参数）
   auth_type: "bearer"                   # 认证类型：bearer, basic, apikey（可选）
-  auth_token: "your_token"              # Bearer令牌或API密钥（可选）
-  auth_username: "user"                 # 基本认证用户名（可选）
-  auth_password: "pass"                 # 基本认证密码（可选）
+  auth_token: "{{env(WEBHOOK_TOKEN)}}"  # 使用环境变量的Bearer令牌（可选）
+  auth_username: "user-{{rand(1000,9999)}}"  # 带动态后缀的基本认证用户名（可选）
+  auth_password: "{{env(AUTH_PASSWORD)}}"     # 来自环境变量的基本认证密码（可选）
   auth_header: "X-API-Key"              # API密钥自定义头部名称（可选）
   
   # 请求配置
@@ -432,44 +342,68 @@ webhook:
   retries: 3                            # 重试次数（可选，默认0）
   skip_tls_verify: false                # 跳过TLS证书验证（可选）
   
-  # 载荷自定义
+  # 高级载荷自定义，支持特殊参数
   custom_payload:                       # 自定义请求载荷（可选）
-    template: '{"alert": "{{.Title}}", "details": "{{.Message}}"}'
+    template: |
+      {
+        "alert": "{{.Title}}",
+        "details": "{{.Message}}",
+        "timestamp": "{{%Y-%m-%d %H:%M:%S}}",
+        "request_id": "{{uuid}}",
+        "environment": "{{env(ENVIRONMENT)}}",
+        "random_id": "{{rand(10000,99999)}}"
+      }
     content_type: "application/json"    # 载荷内容类型（可选）
-    fields:                             # 额外静态字段（可选）
-      environment: "production"
-      service: "ponghub"
+    fields:                             # 支持特殊参数的额外字段（可选）
+      environment: "prod-{{rand(100,999)}}"
+      session_id: "{{uuid_short}}"
+      build_number: "{{env(BUILD_NUMBER)}}"
+      timestamp_unix: "{{%s}}"
     include_title: true                 # 在额外字段中包含标题（可选）
     include_message: true               # 在额外字段中包含消息（可选）
     title_field: "alert_title"          # 标题自定义字段名（可选）
     message_field: "alert_message"      # 消息自定义字段名（可选）
-  
-  # 预设格式（作为custom_payload的替代）
-  format: "slack"                       # 预设格式：slack, discord, teams, mattermost（可选）
-  
-  # 直接模板（DEPRECATED，建议使用custom_payload）
-  template: '{"title": "{{.title}}", "message": "{{.message}}"}'  # 直接模板（可选）
 ```
 
-模板使用Go模板语法，支持访问 `{{.Title}}`、`{{.Message}}` 等变量：
+**Webhook中的特殊参数支持：**
+
+Webhook配置现在全面支持在以下字段中使用特殊参数：
+
+- **URL**: `url: "https://hooks.example.com/{{env(HOOK_ID)}}"`
+- **请求头**: 所有请求头值都可以使用特殊参数
+- **认证信息**: 所有认证字段均支持动态值
+- **模板**: 同时支持Go模板语法（`{{.Title}}`）和特殊参数（`{{uuid}}`）
+- **自定义字段**: 所有自定义载荷字段均支持特殊参数
+
+**模板语法兼容性：**
+
+Webhook模板系统无缝支持两种语法：
+
+- **Go模板语法**: `{{.Title}}`、`{{.Message}}` - 访问通知数据
+- **特殊参数**: `{{uuid}}`、`{{%Y-%m-%d}}`、`{{env(VAR)}}` - 动态值
+
+结合两种语法的示例：
 
 ```yaml
 custom_payload:
   template: |
     {
-      "alert": "{{.Title}}",
-      "details": "{{.Message}}",
-      "metadata": {
-        "severity": "high"
-      }
+      "service_alert": "{{.Title}}",
+      "description": "{{.Message}}",
+      "alert_id": "{{uuid_short}}",
+      "timestamp": "{{%Y-%m-%d %H:%M:%S}}",
+      "environment": "{{env(DEPLOY_ENV)}}",
+      "correlation_id": "{{rand_str(12)}}"
     }
   fields:
-    environment: "production"
+    datacenter: "{{env(DATACENTER)}}"
+    version: "{{env(APP_VERSION)}}"
 ```
 
 所需环境变量：
 
 - `WEBHOOK_URL` - 自定义Webhook URL（如果`url`字段为空）
+- 特殊参数中引用的任何环境变量（如：`API_TOKEN`、`ENVIRONMENT`）
 
 </div>
 </details>
@@ -494,8 +428,6 @@ notifications:
   enabled: true
   methods:
     - email
-    - discord
-    - slack
   
   email:
     smtp_host: "smtp.gmail.com"
@@ -507,18 +439,6 @@ notifications:
     subject: "🚨 PongHub 服务告警"
     use_starttls: true
     is_html: true
-  
-  discord:
-    username: "PongHub 监控"
-    use_embeds: true
-    color: 15158332
-  
-  slack:
-    channel: "#alerts"
-    username: "PongHub Bot"
-    icon_emoji: ":warning:"
-    use_blocks: true
-    color: "danger"
 ```
 
 ## 本地开发
