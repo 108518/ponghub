@@ -7,10 +7,7 @@ services:
       - url: "https://mind.ch3nyang.top"
   - name: "My Services"
     endpoints:
-      - url: "https://docker-registry.ch3nyang.top/health"
       - url: "https://2024.ch3nyang.top/health"
-      - url: "https://docker-registry.ch3nyang.top/v2"
-        status_code: 401
       - url: "https://2024.ch3nyang.top"
 
 notifications:
